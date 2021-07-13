@@ -19,19 +19,20 @@ function getCwdPath(/** @type {string} */srcPath) {
     return srcPath.substring(srcDir.length + 1);
 }
 
-async function patchFirefoxManifest({production}) {
+async function patchManifest({debug, firefox, thunderbird}) {
     const manifest = await fs.readJson(`${srcDir}/manifest.json`);
-    const patch = await fs.readJson(`${srcDir}/manifest-firefox.json`);
-    const patched = {...manifest, ...patch};
-    const firefoxDir = getDestDir({production, firefox: true});
-    await fs.writeJson(`${firefoxDir}/manifest.json`, patched, {spaces: 4});
+    const fireFoxPatch = await fs.readJson(`${srcDir}/manifest-firefox.json`);
+    const thunderBirdPatch = await fs.readJson(`${srcDir}/manifest-thunderbird.json`);
+    const patched = firefox ? {...manifest, ...fireFoxPatch} : {...manifest, ...thunderBirdPatch};
+    const destDir = getDestDir({debug, firefox, thunderbird});
+    await fs.writeJson(`${destDir}/manifest.json`, patched, {spaces: 4});
 }
 
-async function copyFile(path, {production, firefox}) {
+async function copyFile(path, {debug, firefox, thunderbird}) {
     const cwdPath = getCwdPath(path);
-    const destDir = getDestDir({production, firefox});
-    if (firefox && cwdPath === 'manifest.json') {
-        await patchFirefoxManifest({production});
+    const destDir = getDestDir({debug, firefox, thunderbird});
+    if ((firefox || thunderbird) && cwdPath === 'manifest.json') {
+        await patchManifest({debug, firefox, thunderbird});
     } else {
         const src = `${srcDir}/${cwdPath}`;
         const dest = `${destDir}/${cwdPath}`;
@@ -39,11 +40,12 @@ async function copyFile(path, {production, firefox}) {
     }
 }
 
-async function copy({production}) {
+async function copy({debug}) {
     const files = await globby(paths);
     for (const file of files) {
-        await copyFile(file, {production, firefox: false});
-        await copyFile(file, {production, firefox: true});
+        await copyFile(file, {debug, firefox: false});
+        await copyFile(file, {debug, firefox: true});
+        await copyFile(file, {debug, firefox: false, thunderbird: true});
     }
 }
 
@@ -55,8 +57,9 @@ module.exports = createTask(
     async (changedFiles) => {
         for (const file of changedFiles) {
             if (await fs.exists(file)) {
-                await copyFile(file, {production: false, firefox: false});
-                await copyFile(file, {production: false, firefox: true});
+                await copyFile(file, {debug: true, firefox: false, thunderbird: false});
+                await copyFile(file, {debug: true, firefox: true, thunderbird: false});
+                await copyFile(file, {debug: true, firefox: false, thunderbird: true});
             }
         }
         reload({type: reload.FULL});

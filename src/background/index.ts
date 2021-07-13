@@ -1,21 +1,21 @@
 import {Extension} from './extension';
-import {getHelpURL} from '../utils/links';
+import {getHelpURL, UNINSTALL_URL} from '../utils/links';
 
 // Initialize extension
 const extension = new Extension();
 extension.start();
 
-chrome.runtime.onInstalled.addListener(({reason}) => {
-    if (reason === 'install') {
-        chrome.tabs.create({url: getHelpURL()});
-    }
-});
+const welcome = `  /''''\\
+ (0)==(0)
+/__||||__\\
+Welcome to Dark Reader!`;
+console.log(welcome);
 
-declare const __DEBUG__: boolean;
+declare const __WATCH__: boolean;
 declare const __PORT__: number;
-const DEBUG = __DEBUG__;
+const WATCH = __WATCH__;
 
-if (DEBUG) {
+if (WATCH) {
     const PORT = __PORT__;
     const listen = () => {
         const socket = new WebSocket(`ws://localhost:${PORT}`);
@@ -43,4 +43,12 @@ if (DEBUG) {
         socket.onclose = () => setTimeout(listen, 1000);
     };
     listen();
+} else {
+    chrome.runtime.onInstalled.addListener(({reason}) => {
+        if (reason === 'install') {
+            chrome.tabs.create({url: getHelpURL()});
+        }
+    });
+
+    chrome.runtime.setUninstallURL(UNINSTALL_URL);
 }
